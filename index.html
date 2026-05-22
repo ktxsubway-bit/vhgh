@@ -3,73 +3,1220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>사이트 이전 안내</title>
+    <title>3D 감성 키캡 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Inter & Noto Sans KR) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Noto+Sans+KR:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f8f9fa;
-            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-            color: #333;
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: #0b0f19;
+            /* 화면 드래그 시 텍스트가 파란색으로 선택 지정되는 현상 차단 */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
-        .container {
-            text-align: center;
-            padding: 40px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            max-width: 500px;
-            width: 90%;
+        /* 스크롤바 커스텀 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: #007BFF;
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
         }
-        p {
-            line-height: 1.6;
-            margin-bottom: 30px;
-            color: #666;
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
         }
-        .btn {
-            display: inline-block;
-            padding: 15px 35px;
-            background-color: #007BFF;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 18px;
-            transition: background-color 0.3s;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
         }
-        .btn:hover {
-            background-color: #0056b3;
+        /* 3D 캔버스 컨테이너 스타일 */
+        #canvasContainer {
+            position: relative;
+            width: 100%;
+            height: 480px;
+            /* 파란색 계열 그라디언트를 중립적인 무채색 딥그레이 톤으로 교체 */
+            background: radial-gradient(circle at center, #1a1f2c 0%, #0b0f19 100%);
+            border-radius: 16px;
+            overflow: hidden;
+            outline: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .footer-text {
-            margin-top: 25px;
-            font-size: 14px;
-            color: #999;
+        /* 캔버스 및 버튼 클릭 시 파란색 아웃라인 / 모바일 터치 하이라이트 완전히 방지 */
+        canvas, button, input {
+            outline: none !important;
+            -webkit-tap-highlight-color: transparent !important;
         }
     </style>
 </head>
-<body>
+<body class="text-slate-200 min-h-screen flex flex-col justify-between overflow-x-hidden selection:bg-indigo-500/30 selection:text-white">
 
-    <div class="container">
-        <h1>사이트 이전 안내</h1>
-        <p>
-            저희 사이트가 새로운 주소로 이전되었습니다.<br>
-            기존 주소는 곧 서비스가 종료될 예정이오니<br>
-            <strong>새로운 사이트 주소</strong>를 즐겨찾기 해주시기 바랍니다.
-        </p>
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-keyboard text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
+                        Keyboard Craft <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">3D Simulator</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-medium">나만의 기계식 키캡 디자인 & 타건 시뮬레이터</p>
+                </div>
+            </div>
+            <!-- 사운드 제어 & 3D 상태 표시 -->
+            <div class="flex items-center gap-3">
+                <button id="soundToggleBtn" onclick="toggleMute()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition border border-slate-700/50">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-indigo-400"></i>
+                    <span id="soundText" class="text-sm">효과음 켜짐</span>
+                </button>
+                <div class="px-4 py-2 rounded-xl bg-indigo-950/40 border border-indigo-800/50 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs text-indigo-300 font-semibold uppercase tracking-wider">3D ENGINE ACTIVE</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="max-w-7xl w-full mx-auto px-4 py-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <a href="http://xn--o79arqg04duoa.xn--h32bi4v.xn--3e0b707e" class="btn">
-            새로운 사이트로 이동하기
-        </a>
-    </div>
+        <!-- Left Side Control Panel (4 Cols) -->
+        <section class="lg:col-span-4 space-y-6">
+            
+            <!-- 1. Switch Selection (스위치 선택) -->
+            <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-sm">
+                <h2 class="text-md font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-nodes text-indigo-400"></i>
+                    1. 스위치 선택 (타건음 변경)
+                </h2>
+                <div class="grid grid-cols-3 gap-3">
+                    <!-- 청축 -->
+                    <button onclick="selectSwitch('blue')" id="switchBtn-blue" class="relative group p-3 rounded-xl border-2 border-indigo-600 bg-slate-800 text-center flex flex-col items-center justify-center transition shadow-md">
+                        <div class="w-7 h-7 rounded bg-blue-500 flex items-center justify-center text-white font-bold text-xs shadow-inner shadow-blue-400 mb-2">＋</div>
+                        <span class="text-sm font-bold text-white">청축</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5">Clicky (경쾌함)</span>
+                    </button>
+                    <!-- 적축 -->
+                    <button onclick="selectSwitch('red')" id="switchBtn-red" class="relative group p-3 rounded-xl border-2 border-transparent bg-slate-800/50 text-center flex flex-col items-center justify-center transition hover:border-slate-700 shadow-md">
+                        <div class="w-7 h-7 rounded bg-red-500 flex items-center justify-center text-white font-bold text-xs shadow-inner shadow-red-400 mb-2">＋</div>
+                        <span class="text-sm font-bold text-slate-300 group-hover:text-white">적축</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5">Linear (로우피치)</span>
+                    </button>
+                    <!-- 갈축 -->
+                    <button onclick="selectSwitch('brown')" id="switchBtn-brown" class="relative group p-3 rounded-xl border-2 border-transparent bg-slate-800/50 text-center flex flex-col items-center justify-center transition hover:border-slate-700 shadow-md">
+                        <div class="w-7 h-7 rounded bg-amber-700 flex items-center justify-center text-white font-bold text-xs shadow-inner shadow-amber-600 mb-2">＋</div>
+                        <span class="text-sm font-bold text-slate-300 group-hover:text-white">갈축</span>
+                        <span class="text-[10px] text-slate-400 mt-0.5">Tactile (서각임)</span>
+                    </button>
+                </div>
+                <!-- 스위치 세부 설명 수동 업데이트 구역 -->
+                <div class="mt-4 p-3 bg-slate-950/80 rounded-xl border border-slate-800/80 text-xs text-slate-400" id="switchDescription">
+                    🔊 <span class="text-indigo-300 font-semibold">청축 (Clicky):</span> 경쾌하고 찰칵거리는 강렬한 피드백 사운드. 구분감이 뚜렷해 타이핑의 재미가 가장 높습니다.
+                </div>
+            </div>
 
+            <!-- 2. Color & Tool Customizer (색상 변경 및 선택 도구) -->
+            <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-sm space-y-5">
+                <h2 class="text-md font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                    <i class="fa-solid fa-palette text-indigo-400"></i>
+                    2. 키캡 색상 커스텀
+                </h2>
+
+                <!-- 채색 도구 모드 선택 -->
+                <div>
+                    <span class="text-xs font-bold text-slate-400 block mb-2">도색 모드 선택</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="setToolMode('brush')" id="toolBtn-brush" class="py-2.5 px-3 rounded-xl bg-indigo-600 text-white border border-indigo-500 font-bold text-xs flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-paint-brush"></i> 붓 모드 (클릭 채색)
+                        </button>
+                        <button onclick="setToolMode('all')" id="toolBtn-all" class="py-2.5 px-3 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-700 hover:text-white transition">
+                            <i class="fa-solid fa-fill-drip"></i> 전체 일괄 적용
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+                        💡 <b>붓 모드:</b> 색상을 지정하고 <b>3D 화면의 키캡을 클릭</b>하면 해당 키캡의 색상만 쏙 바꿀 수 있어!
+                    </p>
+                </div>
+
+                <!-- Color Options -->
+                <div class="space-y-4">
+                    <!-- Keycap Base Color -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs font-bold text-slate-400">키캡 기본 바디 색상</span>
+                            <span id="hex-keyColor" class="text-[10px] font-mono text-slate-500 uppercase">#FFE5EC</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="keyColorPicker" value="#ffe5ec" onchange="updateColorsFromPickers()" class="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-0">
+                            <!-- 프리셋 팔레트 -->
+                            <div class="flex-grow flex flex-wrap gap-1.5" id="baseColorPresets"></div>
+                        </div>
+                    </div>
+
+                    <!-- Keycap Legend (Text) Color -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs font-bold text-slate-400">키캡 각인 글자 색상</span>
+                            <span id="hex-textColor" class="text-[10px] font-mono text-slate-500 uppercase">#FB6F92</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="textColorPicker" value="#fb6f92" onchange="updateColorsFromPickers()" class="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-0">
+                            <!-- 글자색 프리셋 -->
+                            <div class="flex-grow flex flex-wrap gap-1.5" id="textColorPresets"></div>
+                        </div>
+                    </div>
+
+                    <!-- Keyboard Case Color -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-xs font-bold text-slate-400">키보드 하우징(프레임) 색상</span>
+                            <span id="hex-caseColor" class="text-[10px] font-mono text-slate-500 uppercase">#FFB3C6</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="caseColorPicker" value="#ffb3c6" onchange="updateColorsFromPickers()" class="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-0">
+                            <div class="flex-grow flex flex-wrap gap-1.5" id="caseColorPresets"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Predefined Themes (감성 가득 테마 프리셋) -->
+            <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-sm">
+                <h2 class="text-md font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                    3. 완제품 감성 테마 추천
+                </h2>
+                <div class="space-y-2.5">
+                    <!-- 레트로 테마 -->
+                    <button onclick="applyPresetTheme('retro')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-500 transition text-left">
+                        <div class="flex items-center gap-3">
+                            <div class="flex -space-x-1">
+                                <span class="w-3 h-3 rounded-full bg-[#E5D3B3]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#B85C38]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#5C3D2E]"></span>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-white">Classic Retro (클래식 레트로)</h3>
+                                <p class="text-[9px] text-slate-400">80년대 타자기 감성 빈티지 조합</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <!-- 사이버펑크 -->
+                    <button onclick="applyPresetTheme('cyber')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-500 transition text-left">
+                        <div class="flex items-center gap-3">
+                            <div class="flex -space-x-1">
+                                <span class="w-3 h-3 rounded-full bg-[#FF007F]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#00F0FF]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#1A1A24]"></span>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-white">Neon Cyberpunk (네온 사이버펑크)</h3>
+                                <p class="text-[9px] text-slate-400">화려한 핑크와 네온 민트의 시너지</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <!-- 미니멀 올화이트 -->
+                    <button onclick="applyPresetTheme('white')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-500 transition text-left">
+                        <div class="flex items-center gap-3">
+                            <div class="flex -space-x-1">
+                                <span class="w-3 h-3 rounded-full bg-[#FFFFFF] border border-slate-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#E2E8F0]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#94A3B8]"></span>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-white">Snow White (스노우 화이트)</h3>
+                                <p class="text-[9px] text-slate-400">감성이 깃든 완전 무결 미니멀 화이트</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <!-- 피치블라썸 -->
+                    <button onclick="applyPresetTheme('peach')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-500 transition text-left">
+                        <div class="flex items-center gap-3">
+                            <div class="flex -space-x-1">
+                                <span class="w-3 h-3 rounded-full bg-[#FFE5EC]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#FFB3C6]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#FB6F92]"></span>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-white">Peach Blossom (피치 블라썸)</h3>
+                                <p class="text-[9px] text-slate-400">봄을 닮아 화사하고 부드러운 분홍빛</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                    <!-- 그라파이트 카본 -->
+                    <button onclick="applyPresetTheme('carbon')" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-500 transition text-left">
+                        <div class="flex items-center gap-3">
+                            <div class="flex -space-x-1">
+                                <span class="w-3 h-3 rounded-full bg-[#FF7F3E]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#374151]"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#111827]"></span>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold text-white">Carbon Orange (카본 오렌지)</h3>
+                                <p class="text-[9px] text-slate-400">중후한 먹색 베이스에 화려한 오렌지 포인트</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-xs text-slate-500"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side Keyboard Layout & Simulator (8 Cols) -->
+        <section class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- 3D Keyboard Scene Box -->
+            <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur-sm relative">
+                <!-- 상단 장식 및 상태 모니터 -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                    <div class="flex gap-2 items-center">
+                        <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                        <span class="text-xs font-semibold text-slate-400 tracking-wider">REAL-TIME 3D SIMULATION BOARD</span>
+                    </div>
+                    <!-- 3D 조작 설명 -->
+                    <div class="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-3 py-1 rounded-full font-bold">
+                        🖱️ 좌클릭: 3D 키캡 타건 & 드래그(회전) | 우클릭: 이동 | 휠: 확대/축소
+                    </div>
+                </div>
+
+                <!-- Three.js Canvas Container -->
+                <div id="canvasContainer">
+                    <!-- 3D Loader Overlay (생성 직전 대기창) -->
+                    <div id="loadingOverlay" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center gap-3 z-10 transition-opacity duration-500">
+                        <i class="fa-solid fa-spinner text-3xl text-indigo-500 animate-spin"></i>
+                        <span class="text-xs text-slate-400 font-bold">3D 키보드 렌더링 엔진 로딩 중...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyboard Utility & Real-time Console -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 타건용 시뮬레이터 인풋 (Focus Zone) -->
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-keyboard text-emerald-400"></i>
+                            실제 키보드 & 클릭 입력창
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+                            화면의 <b>3D 키캡을 마우스로 클릭</b>하거나, 아래 입력창을 누른 채 <b>실제 기계식 키보드로 타이핑</b>을 즐겨보세요! 실시간 글자가 정확히 기록됩니다.
+                        </p>
+                    </div>
+                    <div>
+                        <input type="text" id="typingTestArea" placeholder="👉 여기에 타이핑하거나, 위 3D 키캡을 누르세요! 👈" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-center text-sm font-semibold text-emerald-400 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 transition">
+                    </div>
+                </div>
+
+                <!-- 실시간 모니터링 로그 -->
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-gauge-high text-indigo-400"></i>
+                            실시간 모니터링 및 상태
+                        </h3>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2 bg-slate-950/80 rounded-lg border border-slate-800">
+                                <span class="text-slate-500 block">마지막 입력된 키</span>
+                                <span id="lastPressedKey" class="text-white font-mono font-bold text-sm">-</span>
+                            </div>
+                            <div class="p-2 bg-slate-950/80 rounded-lg border border-slate-800">
+                                <span class="text-slate-500 block">현재 입력 모드</span>
+                                <span id="currentLangMode" class="text-emerald-400 font-bold text-sm">영문 (ENG)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs">
+                        <span class="text-slate-500">배치 디자인 리셋</span>
+                        <button onclick="resetKeycaps()" class="text-red-400 hover:text-red-300 font-bold flex items-center gap-1 transition">
+                            <i class="fa-solid fa-rotate"></i> 키캡 완전 초기화
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/50 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500 mt-10">
+        <p>© 2026 Coding Gemini 3D Keyboard Customizer. Powered by Three.js.</p>
+    </footer>
+
+    <!-- Three.js & OrbitControls 3D 스크립트 연결 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let isMuted = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 스위치 종류에 맞춰 타건음 물리 합성 (청축, 적축, 갈축의 명확한 특성 구분)
+        function playSwitchSound(type) {
+            if (isMuted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'blue') {
+                // 청축 (Clicky) - 초고역대 틱 사운드 + 리니어 통울림
+                const clickOsc = audioCtx.createOscillator();
+                const clickGain = audioCtx.createGain();
+                
+                clickOsc.type = 'triangle';
+                clickOsc.frequency.setValueAtTime(3600, now);
+                clickOsc.frequency.exponentialRampToValueAtTime(150, now + 0.03);
+                
+                clickGain.gain.setValueAtTime(0.35, now);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(4500, now);
+                filter.Q.setValueAtTime(4, now);
+
+                clickOsc.connect(filter);
+                filter.connect(clickGain);
+                clickGain.connect(audioCtx.destination);
+                
+                clickOsc.start(now);
+                clickOsc.stop(now + 0.04);
+
+                const housingOsc = audioCtx.createOscillator();
+                const housingGain = audioCtx.createGain();
+                housingOsc.type = 'sine';
+                housingOsc.frequency.setValueAtTime(260, now);
+                housingOsc.frequency.exponentialRampToValueAtTime(60, now + 0.12);
+                
+                housingGain.gain.setValueAtTime(0.18, now);
+                housingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                
+                housingOsc.connect(housingGain);
+                housingGain.connect(audioCtx.destination);
+                
+                housingOsc.start(now);
+                housingOsc.stop(now + 0.15);
+
+            } else if (type === 'red') {
+                // 적축 (Linear) - 도글도글 로우피치 사운드
+                const housingOsc = audioCtx.createOscillator();
+                const housingGain = audioCtx.createGain();
+                
+                housingOsc.type = 'triangle';
+                housingOsc.frequency.setValueAtTime(150, now);
+                housingOsc.frequency.exponentialRampToValueAtTime(20, now + 0.08);
+                
+                housingGain.gain.setValueAtTime(0.5, now);
+                housingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(320, now);
+
+                housingOsc.connect(filter);
+                filter.connect(housingGain);
+                housingGain.connect(audioCtx.destination);
+                
+                housingOsc.start(now);
+                housingOsc.stop(now + 0.1);
+
+            } else if (type === 'brown') {
+                // 갈축 (Tactile) - 마찰음 + 중간 피치 통울림
+                const frictionOsc = audioCtx.createOscillator();
+                const frictionGain = audioCtx.createGain();
+                
+                frictionOsc.type = 'triangle';
+                frictionOsc.frequency.setValueAtTime(900, now);
+                frictionOsc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+                
+                frictionGain.gain.setValueAtTime(0.15, now);
+                frictionGain.gain.exponentialRampToValueAtTime(0.005, now + 0.05);
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1800, now);
+
+                frictionOsc.connect(filter);
+                filter.connect(frictionGain);
+                frictionGain.connect(audioCtx.destination);
+                
+                frictionOsc.start(now);
+                frictionOsc.stop(now + 0.06);
+
+                const housingOsc = audioCtx.createOscillator();
+                const housingGain = audioCtx.createGain();
+                housingOsc.type = 'triangle';
+                housingOsc.frequency.setValueAtTime(190, now);
+                housingOsc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+                
+                housingGain.gain.setValueAtTime(0.28, now);
+                housingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                
+                housingOsc.connect(housingGain);
+                housingGain.connect(audioCtx.destination);
+                
+                housingOsc.start(now);
+                housingOsc.stop(now + 0.12);
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            if (isMuted) {
+                icon.className = 'fa-solid fa-volume-xmark text-red-400';
+                text.innerText = '음소거됨';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-indigo-400';
+                text.innerText = '효과음 켜짐';
+            }
+        }
+
+        // 실제 키보드 입력(물리 키코드 또는 입력된 한/영 문자)을 기반으로 매칭되는 3D 키캡 객체를 찾는 지능형 헬퍼 함수
+        function findKeyMesh(event) {
+            // 1. 물리 키코드(e.code) 매핑 시도 (영문 키보드 및 가장 표준적인 키보드 이벤트)
+            if (event.code && keyMeshes[event.code]) {
+                return keyMeshes[event.code];
+            }
+            
+            // 2. 한글 IME 입력 중이거나 물리 코드가 누락되었을 때, 입력된 문자(e.key)를 대조해 매핑
+            if (event.key) {
+                const pressedKey = event.key.toUpperCase();
+                for (let code in keyMeshes) {
+                    const mesh = keyMeshes[code];
+                    
+                    // 각 키캡의 영어 라벨 또는 한글 라벨이 입력된 키값과 일치하는지 체크
+                    if (mesh.userData.label === pressedKey || mesh.userData.korLabel === pressedKey) {
+                        return mesh;
+                    }
+                    if (mesh.userData.korLabel === event.key || mesh.userData.label.toLowerCase() === event.key.toLowerCase()) {
+                        return mesh;
+                    }
+                }
+            }
+            return null;
+        }
+    </script>
+
+    <script>
+        const keysData = [
+            // Row 1
+            [
+                { code: 'Escape', label: 'Esc', kor: 'Esc', w: 1.0 },
+                { code: 'Digit1', label: '1', kor: '!', w: 1.0 },
+                { code: 'Digit2', label: '2', kor: '@', w: 1.0 },
+                { code: 'Digit3', label: '3', kor: '#', w: 1.0 },
+                { code: 'Digit4', label: '4', kor: '$', w: 1.0 },
+                { code: 'Digit5', label: '5', kor: '%', w: 1.0 },
+                { code: 'Digit6', label: '6', kor: '^', w: 1.0 },
+                { code: 'Digit7', label: '7', kor: '&', w: 1.0 },
+                { code: 'Digit8', label: '8', kor: '*', w: 1.0 },
+                { code: 'Digit9', label: '9', kor: '(', w: 1.0 },
+                { code: 'Digit0', label: '0', kor: ')', w: 1.0 },
+                { code: 'Minus', label: '-', kor: '_', w: 1.0 },
+                { code: 'Equal', label: '=', kor: '+', w: 1.0 },
+                { code: 'Backspace', label: 'Back', kor: '지움', w: 2.0 }
+            ],
+            // Row 2
+            [
+                { code: 'Tab', label: 'Tab', kor: '탭', w: 1.5 },
+                { code: 'KeyQ', label: 'Q', kor: 'ㅂ', w: 1.0 },
+                { code: 'KeyW', label: 'W', kor: 'ㅈ', w: 1.0 },
+                { code: 'KeyE', label: 'E', kor: 'ㄷ', w: 1.0 },
+                { code: 'KeyR', label: 'R', kor: 'ㄱ', w: 1.0 },
+                { code: 'KeyT', label: 'T', kor: 'ㅅ', w: 1.0 },
+                { code: 'KeyY', label: 'Y', kor: 'ㅛ', w: 1.0 },
+                { code: 'KeyU', label: 'U', kor: 'ㅕ', w: 1.0 },
+                { code: 'KeyI', label: 'I', kor: 'ㅑ', w: 1.0 },
+                { code: 'KeyO', label: 'O', kor: 'ㅐ', w: 1.0 },
+                { code: 'KeyP', label: 'P', kor: 'ㅔ', w: 1.0 },
+                { code: 'BracketLeft', label: '[', kor: '{', w: 1.0 },
+                { code: 'BracketRight', label: ']', kor: '}', w: 1.0 },
+                { code: 'Backslash', label: '\\', kor: '|', w: 1.5 }
+            ],
+            // Row 3
+            [
+                { code: 'CapsLock', label: 'Caps', kor: '한/영', w: 1.75 },
+                { code: 'KeyA', label: 'A', kor: 'ㅁ', w: 1.0 },
+                { code: 'KeyS', label: 'S', kor: 'ㄴ', w: 1.0 },
+                { code: 'KeyD', label: 'D', kor: 'ㅇ', w: 1.0 },
+                { code: 'KeyF', label: 'F', kor: 'ㄹ', w: 1.0 },
+                { code: 'KeyG', label: 'G', kor: 'ㅎ', w: 1.0 },
+                { code: 'KeyH', label: 'H', kor: 'ㅗ', w: 1.0 },
+                { code: 'KeyJ', label: 'J', kor: 'ㅓ', w: 1.0 },
+                { code: 'KeyK', label: 'K', kor: 'ㅏ', w: 1.0 },
+                { code: 'KeyL', label: 'L', kor: 'ㅣ', w: 1.0 },
+                { code: 'Semicolon', label: ';', kor: ':', w: 1.0 },
+                { code: 'Quote', label: '\'', kor: '"', w: 1.0 },
+                { code: 'Enter', label: 'Enter', kor: '입력', w: 2.25 }
+            ],
+            // Row 4
+            [
+                { code: 'ShiftLeft', label: 'Shift', kor: '쉬프트', w: 2.25 },
+                { code: 'KeyZ', label: 'Z', kor: 'ㅋ', w: 1.0 },
+                { code: 'KeyX', label: 'X', kor: 'ㅌ', w: 1.0 },
+                { code: 'KeyC', label: 'C', kor: 'ㅊ', w: 1.0 },
+                { code: 'KeyV', label: 'V', kor: 'ㅍ', w: 1.0 },
+                { code: 'KeyB', label: 'B', kor: 'ㅠ', w: 1.0 },
+                { code: 'KeyN', label: 'N', kor: 'ㅜ', w: 1.0 },
+                { code: 'KeyM', label: 'M', kor: 'ㅡ', w: 1.0 },
+                { code: 'Comma', label: ',', kor: '<', w: 1.0 },
+                { code: 'Period', label: '.', kor: '>', w: 1.0 },
+                { code: 'Slash', label: '/', kor: '?', w: 1.0 },
+                { code: 'ShiftRight', label: 'Shift', kor: '쉬프트', w: 2.75 }
+            ],
+            // Row 5
+            [
+                { code: 'ControlLeft', label: 'Ctrl', kor: '컨트롤', w: 1.25 },
+                { code: 'MetaLeft', label: 'Win', kor: '시작', w: 1.25 },
+                { code: 'AltLeft', label: 'Alt', kor: '알트', w: 1.25 },
+                { code: 'Space', label: ' ', kor: ' ', w: 6.25 },
+                { code: 'AltRight', label: 'Alt', kor: '한자', w: 1.25 },
+                { code: 'MetaRight', label: 'Fn', kor: '기능', w: 1.25 },
+                { code: 'Fn', label: 'Menu', kor: '메뉴', w: 1.25 },
+                { code: 'ControlRight', label: 'Ctrl', kor: '컨트롤', w: 1.25 }
+            ]
+        ];
+
+        let scene, camera, renderer, controls;
+        let keyMeshes = {}; // 각 키들의 Group 혹은 Mesh 보관 (애니메이션, 도색 대응)
+        let keyboardGroup;  // 키보드 하우징 + 키캡 전체를 담을 최상위 그룹
+        let housingMesh;    // 키보드 하우징 메시
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // 현재 테마 색상 상태 및 피커 밸류 바인딩 변수들
+        let selectedKeycapColor = '#ffe5ec';
+        let selectedTextColor = '#fb6f92';
+        let selectedCaseColor = '#ffb3c6';
+        let currentToolMode = 'brush'; // 'brush' or 'all'
+        let currentSwitch = 'blue';
+        let isKoreanMode = false; // CapsLock/한영 키로 전환되는 입력 토글 상태
+
+        // 컬러 프리셋 데이터
+        const basePresets = ['#ffe5ec', '#e5d3b3', '#111827', '#f8fafc', '#ec4899', '#ff7f3e', '#3b82f6', '#10b981'];
+        const textPresets = ['#fb6f92', '#5c3d2e', '#00f0ff', '#64748b', '#ffffff', '#111827'];
+        const casePresets = ['#ffb3c6', '#3c2a21', '#0b0f19', '#cbd5e1', '#0f172a', '#111827'];
+
+        // 초기 생성 기동
+        window.onload = function() {
+            renderColorPresets();
+            init3DScene();
+            applyPresetTheme('peach'); // 사랑스러운 피치 테마로 기본 기동!
+            
+            // 전역 윈도우 키 감지로 실제 키보드 연동 이벤트 바인딩
+            window.addEventListener('keydown', handlePhysicalKeyDown);
+            window.addEventListener('keyup', handlePhysicalKeyUp);
+
+            // 로딩 오버레이 걷어내기
+            setTimeout(() => {
+                const loader = document.getElementById('loadingOverlay');
+                if (loader) {
+                    loader.classList.add('opacity-0');
+                    setTimeout(() => loader.remove(), 500);
+                }
+            }, 800);
+        };
+
+        // 색상 프리셋 생성 렌더링
+        function renderColorPresets() {
+            const buildPresetRow = (containerId, colors, pickerId) => {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                colors.forEach(col => {
+                    const btn = document.createElement('button');
+                    btn.style.backgroundColor = col;
+                    btn.className = 'w-5 h-5 rounded border border-slate-700 hover:scale-110 transition shadow-inner';
+                    btn.onclick = () => {
+                        document.getElementById(pickerId).value = col;
+                        updateColorsFromPickers();
+                    };
+                    container.appendChild(btn);
+                });
+            };
+
+            buildPresetRow('baseColorPresets', basePresets, 'keyColorPicker');
+            buildPresetRow('textColorPresets', textPresets, 'textColorPicker');
+            buildPresetRow('caseColorPresets', casePresets, 'caseColorPicker');
+        }
+
+        function init3DScene() {
+            const container = document.getElementById('canvasContainer');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // 1. Scene 생성 (무채색 딥그레이 안개 적용)
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2('#0b0f19', 0.035);
+
+            // 2. Camera 설정
+            camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+            camera.position.set(0, 8, 10);
+
+            // 3. Renderer 설정
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // 4. OrbitControls 추가 (부드러운 조작감 세팅)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // 바닥 하단 관통 금지
+            controls.minDistance = 4;
+            controls.maxDistance = 16;
+
+            // 5. 조명 세팅 (풍부하고 내추럴한 백색 하이라이팅)
+            const ambientLight = new THREE.AmbientLight('#ffffff', 0.7);
+            scene.add(ambientLight);
+
+            // 메인 섀도우 지향성 라이트
+            const dirLight = new THREE.DirectionalLight('#ffffff', 0.8);
+            dirLight.position.set(5, 12, 4);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.bias = -0.001;
+            scene.add(dirLight);
+
+            // 은은한 포인트 라이팅
+            const pointLight = new THREE.PointLight('#ffedd5', 1.0, 15);
+            pointLight.position.set(-3, 4, -2);
+            scene.add(pointLight);
+
+            // 6. 키보드 메인 레이아웃 그룹 배치
+            keyboardGroup = new THREE.Group();
+            scene.add(keyboardGroup);
+
+            // 7. 실시간 리사이징 감지
+            window.addEventListener('resize', onWindowResize);
+
+            // 8. 3D 클릭 이벤트를 감지하기 위해 리스너 바인딩
+            renderer.domElement.addEventListener('pointerdown', onDocumentPointerDown);
+
+            // 3D 메인 렌더 루프 가동
+            animate();
+        }
+
+        // 윈도우 크기 변경 시 뷰포트 재계산
+        function onWindowResize() {
+            const container = document.getElementById('canvasContainer');
+            if(!container) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        function createKeyboard3D() {
+            // 이전에 구성되어 있던 메시는 리셋
+            while (keyboardGroup.children.length > 0) {
+                const obj = keyboardGroup.children[0];
+                keyboardGroup.remove(obj);
+            }
+            keyMeshes = {};
+
+            // 60% 하우징 프레임 생성
+            const housingWidth = 15.6;
+            const housingHeight = 0.7;
+            const housingDepth = 5.6;
+
+            const housingGeo = new THREE.BoxGeometry(housingWidth, housingHeight, housingDepth);
+            const housingMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(selectedCaseColor),
+                roughness: 0.35,
+                metalness: 0.1
+            });
+            housingMesh = new THREE.Mesh(housingGeo, housingMat);
+            housingMesh.position.set(0, -0.15, 0);
+            housingMesh.receiveShadow = true;
+            housingMesh.castShadow = true;
+            keyboardGroup.add(housingMesh);
+
+            // 내부 보강판
+            const plateGeo = new THREE.BoxGeometry(15.2, 0.1, 5.2);
+            const plateMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.8 });
+            const plateMesh = new THREE.Mesh(plateGeo, plateMat);
+            plateMesh.position.set(0, 0.15, 0);
+            keyboardGroup.add(plateMesh);
+
+            // 3D 키캡 배치 계산
+            const startZ = -2.1;
+            const rowSpacing = 1.05;
+
+            keysData.forEach((row, rowIndex) => {
+                let currentX = -7.35;
+                const zPos = startZ + (rowIndex * rowSpacing);
+
+                row.forEach(key => {
+                    const keyWidth = key.w * 0.96;
+                    const keyX = currentX + (key.w / 2);
+
+                    const keyGroup = new THREE.Group();
+                    keyGroup.position.set(keyX, 0.2, zPos);
+                    keyGroup.userData = { 
+                        code: key.code, 
+                        label: key.label,
+                        korLabel: key.kor, // 한글 데이터 추가 저장
+                        baseY: 0.2, 
+                        isPressed: false,
+                        pressTimer: 0,
+                        keycapColor: selectedKeycapColor,
+                        textColor: selectedTextColor
+                    };
+
+                    // 하단 바디
+                    const bottomGeo = new THREE.BoxGeometry(keyWidth, 0.25, 0.9);
+                    const bottomMat = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(selectedKeycapColor),
+                        roughness: 0.4
+                    });
+                    const bottomMesh = new THREE.Mesh(bottomGeo, bottomMat);
+                    bottomMesh.position.set(0, 0.1, 0);
+                    bottomMesh.castShadow = true;
+                    bottomMesh.receiveShadow = true;
+                    keyGroup.add(bottomMesh);
+
+                    // 상단 이중 각인용 상판
+                    const topGeo = new THREE.BoxGeometry(keyWidth * 0.85, 0.15, 0.75);
+                    
+                    // 각 키의 라벨(각인) 텍스처 캔버스 생성 (한/영 지원)
+                    const canvasTexture = createKeycapLabelTexture(key.label, key.kor, selectedKeycapColor, selectedTextColor);
+                    
+                    const topMatSolid = new THREE.MeshStandardMaterial({ color: new THREE.Color(selectedKeycapColor), roughness: 0.4 });
+                    const topMatText = new THREE.MeshStandardMaterial({ map: canvasTexture, roughness: 0.45 });
+                    
+                    const topMaterials = [
+                        topMatSolid, // X+
+                        topMatSolid, // X-
+                        topMatText,  // Y+ (상면에 텍스처 삽입)
+                        topMatSolid, // Y-
+                        topMatSolid, // Z+
+                        topMatSolid  // Z-
+                    ];
+
+                    const topMesh = new THREE.Mesh(topGeo, topMaterials);
+                    topMesh.position.set(0, 0.25, 0);
+                    topMesh.castShadow = true;
+                    keyGroup.add(topMesh);
+
+                    // 3D 그룹 추가
+                    keyboardGroup.add(keyGroup);
+                    keyMeshes[key.code] = keyGroup;
+
+                    currentX += key.w;
+                });
+            });
+
+            // 전체적인 키보드 경사각 추가 (약간 기울여 타건각 조절)
+            keyboardGroup.rotation.x = 0.08;
+        }
+
+        function createKeycapLabelTexture(text, korText, bgColor, textColor) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            // 백그라운드 색상
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, 128, 128);
+
+            // 텍스트 스타일 세팅
+            ctx.fillStyle = textColor;
+            ctx.textBaseline = "middle";
+
+            // 레이아웃 설계: 특수 기능키와 일반 알파벳/숫자 키 구분
+            if (text === ' ' || !text) {
+                // 스페이스바 등 빈 공간
+            } else if (text.length > 2) {
+                // Tab, Enter, Shift, Back, Ctrl 등 특수 기능키
+                ctx.font = "bold 26px 'Inter', sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(text, 64, 64);
+            } else {
+                // 이중 사출 각인 모드 (영문은 좌측 상단, 한글은 우측 하단)
+                ctx.font = "bold 32px 'Inter', sans-serif";
+                ctx.textAlign = "left";
+                ctx.fillText(text, 24, 44);
+
+                if (korText && korText !== text) {
+                    ctx.font = "bold 28px 'Noto Sans KR', sans-serif";
+                    ctx.textAlign = "right";
+                    ctx.fillText(korText, 104, 88);
+                }
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        function onDocumentPointerDown(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(keyboardGroup.children, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                let targetKey = null;
+
+                while (obj && obj !== scene) {
+                    if (obj.userData && obj.userData.code) {
+                        targetKey = obj;
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+
+                if (targetKey) {
+                    const code = targetKey.userData.code;
+                    const label = targetKey.userData.label;
+                    const korLabel = targetKey.userData.korLabel;
+
+                    // 1. 도색 모드 분기 처리
+                    if (currentToolMode === 'brush') {
+                        recolorSingleKeycap(targetKey, selectedKeycapColor, selectedTextColor);
+                    }
+                    
+                    // 2. 가상 3D 키 타건 애니메이션 및 사운드 격발
+                    triggerKeypressAnimation(code, true);
+                    playSwitchSound(currentSwitch);
+                    document.getElementById('lastPressedKey').innerText = korLabel || label;
+
+                    // 3. 입력창에 가상 키 입력 타이핑 전달
+                    sendKeyToInput(code, label, korLabel);
+                }
+            }
+        }
+
+        // 3D 키캡을 클릭했을 때 실제 입력창에 글자를 인젝션하는 코어 로직
+        function sendKeyToInput(code, label, korLabel) {
+            const inputField = document.getElementById('typingTestArea');
+            if (!inputField) return;
+
+            // 한영 전환 키 처리
+            if (code === 'CapsLock') {
+                toggleLanguageMode();
+                return;
+            }
+
+            let textToInsert = '';
+
+            if (code === 'Space') {
+                textToInsert = ' ';
+            } else if (code === 'Backspace') {
+                inputField.value = inputField.value.slice(0, -1);
+            } else if (code === 'Enter') {
+                textToInsert = ''; // 필요시 개행이나 메시지 전송 로직 탑재 가능
+            } else if (code === 'Tab') {
+                textToInsert = '    ';
+            } else if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'Fn'].includes(code)) {
+                // 특수 모디파이어 키는 입력하지 않음
+            } else {
+                // 한/영 입력 상태에 따라 글자 선택
+                if (isKoreanMode) {
+                    // 한글 각인이 존재하고 기능 키가 아닌 경우 한글 입력 지원
+                    textToInsert = (korLabel && korLabel.length === 1) ? korLabel : (label.length === 1 ? label.toLowerCase() : '');
+                } else {
+                    textToInsert = (label.length === 1) ? label.toLowerCase() : '';
+                }
+            }
+
+            if (textToInsert) {
+                inputField.value += textToInsert;
+            }
+
+            // 입력값 변경 반영을 위한 커스텀 이벤트 강제 전달
+            inputField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 한/영 토글 전환 함수
+        function toggleLanguageMode() {
+            isKoreanMode = !isKoreanMode;
+            const modeText = document.getElementById('currentLangMode');
+            if (isKoreanMode) {
+                modeText.innerText = '한글 (KOR)';
+                modeText.className = 'text-amber-400 font-bold text-sm';
+            } else {
+                modeText.innerText = '영문 (ENG)';
+                modeText.className = 'text-emerald-400 font-bold text-sm';
+            }
+        }
+
+        function recolorSingleKeycap(keyGroup, bgCol, textCol) {
+            keyGroup.userData.keycapColor = bgCol;
+            keyGroup.userData.textColor = textCol;
+
+            keyGroup.children.forEach(child => {
+                if (child.geometry.type === 'BoxGeometry') {
+                    if (Array.isArray(child.material)) {
+                        // 영문/한글 각인을 보존하며 컬러 텍스처 재생성 적용
+                        const newTexture = createKeycapLabelTexture(
+                            keyGroup.userData.label, 
+                            keyGroup.userData.korLabel, 
+                            bgCol, 
+                            textCol
+                        );
+                        child.material[2] = new THREE.MeshStandardMaterial({ map: newTexture, roughness: 0.45 });
+                        for (let i = 0; i < child.material.length; i++) {
+                            if (i !== 2) {
+                                child.material[i] = new THREE.MeshStandardMaterial({ color: new THREE.Color(bgCol), roughness: 0.4 });
+                            }
+                        }
+                    } else {
+                        child.material.color.set(new THREE.Color(bgCol));
+                    }
+                }
+            });
+        }
+
+        function triggerKeypressAnimation(code, isClick = false) {
+            const keyMesh = keyMeshes[code];
+            if (keyMesh) {
+                keyMesh.userData.isPressed = true;
+
+                // 마우스 클릭의 경우 타건 후 즉시 스스로 반등하도록 시간 예약 설정
+                if (isClick) {
+                    setTimeout(() => {
+                        keyMesh.userData.isPressed = false;
+                    }, 100);
+                }
+            }
+        }
+
+        function handlePhysicalKeyDown(e) {
+            // 입력창 외부에서 스페이스바 등을 누를 때 브라우저 화면이 스크롤되는 기본 기능 완전 방지
+            const isInputFocused = document.activeElement === document.getElementById('typingTestArea');
+            if (e.code === 'Space' && !isInputFocused) {
+                e.preventDefault();
+            }
+
+            // 물리 키보드로 CapsLock을 눌렀을 때 화면상의 가상 한/영 상태 동기화
+            if (e.code === 'CapsLock') {
+                toggleLanguageMode();
+            }
+
+            // 고정밀 검출 엔진을 사용해 실제 눌려진 글자(예: 'ㄴ')에 매칭되는 3D 키캡 메쉬 획득
+            const keyMesh = findKeyMesh(e);
+            if (keyMesh) {
+                const code = keyMesh.userData.code;
+                if (!keyMesh.userData.isPressed) {
+                    triggerKeypressAnimation(code, false); // 실제 키보드는 keyup 이벤트가 발동할 때까지 눌림 유지
+                    playSwitchSound(currentSwitch);
+                    document.getElementById('lastPressedKey').innerText = keyMesh.userData.korLabel || keyMesh.userData.label;
+                }
+            }
+        }
+
+        function handlePhysicalKeyUp(e) {
+            const keyMesh = findKeyMesh(e);
+            if (keyMesh) {
+                keyMesh.userData.isPressed = false;
+            }
+        }
+
+        // 메인 애니메이션 루프 및 스프링 복원 연산
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (controls) controls.update();
+
+            // 스프링 복원 물리 연산 프레임 적용 (쫀득한 서스펜션을 위한 Lerp 공식 활용)
+            for (let code in keyMeshes) {
+                const keyMesh = keyMeshes[code];
+                const targetY = keyMesh.userData.isPressed ? (keyMesh.userData.baseY - 0.12) : keyMesh.userData.baseY;
+                
+                // 타겟 위치로 35%씩 좁혀가며 부드러운 기계식 바운싱 효과 연출
+                keyMesh.position.y += (targetY - keyMesh.position.y) * 0.35;
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+    </script>
+
+    <script>
+        function setToolMode(mode) {
+            currentToolMode = mode;
+            const brushBtn = document.getElementById('toolBtn-brush');
+            const allBtn = document.getElementById('toolBtn-all');
+
+            if (mode === 'brush') {
+                brushBtn.className = "py-2.5 px-3 rounded-xl bg-indigo-600 text-white border border-indigo-500 font-bold text-xs flex items-center justify-center gap-2 transition";
+                allBtn.className = "py-2.5 px-3 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-700 hover:text-white transition";
+            } else {
+                allBtn.className = "py-2.5 px-3 rounded-xl bg-indigo-600 text-white border border-indigo-500 font-bold text-xs flex items-center justify-center gap-2 transition";
+                brushBtn.className = "py-2.5 px-3 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-700 hover:text-white transition";
+                // 전체 적용 모드 활성화 시 피커 갱신 실행
+                updateColorsFromPickers();
+            }
+        }
+
+        function updateColorsFromPickers() {
+            selectedKeycapColor = document.getElementById('keyColorPicker').value;
+            selectedTextColor = document.getElementById('textColorPicker').value;
+            selectedCaseColor = document.getElementById('caseColorPicker').value;
+
+            // 디스플레이 코드 연동
+            document.getElementById('hex-keyColor').innerText = selectedKeycapColor;
+            document.getElementById('hex-textColor').innerText = selectedTextColor;
+            document.getElementById('hex-caseColor').innerText = selectedCaseColor;
+
+            // 하우징 프레임 다이렉트 교체
+            if (housingMesh) {
+                housingMesh.material.color.set(new THREE.Color(selectedCaseColor));
+            }
+
+            // 일괄 적용 모드 실행 시
+            if (currentToolMode === 'all') {
+                for (let code in keyMeshes) {
+                    recolorSingleKeycap(keyMeshes[code], selectedKeycapColor, selectedTextColor);
+                }
+            }
+        }
+
+        function selectSwitch(type) {
+            currentSwitch = type;
+            
+            document.getElementById('switchBtn-blue').className = "relative group p-3 rounded-xl border-2 border-transparent bg-slate-800/50 text-center flex flex-col items-center justify-center transition hover:border-slate-700 shadow-md";
+            document.getElementById('switchBtn-red').className = "relative group p-3 rounded-xl border-2 border-transparent bg-slate-800/50 text-center flex flex-col items-center justify-center transition hover:border-slate-700 shadow-md";
+            document.getElementById('switchBtn-brown').className = "relative group p-3 rounded-xl border-2 border-transparent bg-slate-800/50 text-center flex flex-col items-center justify-center transition hover:border-slate-700 shadow-md";
+
+            const activeBtn = document.getElementById(`switchBtn-${type}`);
+            activeBtn.className = "relative group p-3 rounded-xl border-2 border-indigo-600 bg-slate-800 text-center flex flex-col items-center justify-center transition shadow-md";
+
+            const monitorLabel = document.getElementById('activeSwitchName');
+            const desc = document.getElementById('switchDescription');
+
+            if (type === 'blue') {
+                desc.innerHTML = `🔊 <span class="text-indigo-300 font-semibold">청축 (Clicky):</span> 경쾌하고 찰칵거리는 강렬한 피드백 사운드. 구분감이 가장 뚜렷하고 청량감이 높은 클릭 소리야.`;
+            } else if (type === 'red') {
+                desc.innerHTML = `🔊 <span class="text-red-300 font-semibold">적축 (Linear):</span> 걸쇠가 없는 고감도 스위치야. 조약돌이 부딪치는 듯 정숙하고 묵직한 로우피치의 도글도글 소리가 매력적이야.`;
+            } else if (type === 'brown') {
+                desc.innerHTML = `🔊 <span class="text-amber-500 font-semibold">갈축 (Tactile):</span> 갈림감 있는 산뜻한 구분감과 부드러운 하우징 타건음을 합성한 전형적인 밸런스형 소리야.`;
+            }
+
+            playSwitchSound(type);
+        }
+
+        function applyPresetTheme(themeName) {
+            if (themeName === 'retro') {
+                selectedKeycapColor = '#e5d3b3';
+                selectedTextColor = '#5c3d2e';
+                selectedCaseColor = '#3c2a21';
+
+                syncPickerInputs(selectedKeycapColor, selectedTextColor, selectedCaseColor);
+                createKeyboard3D();
+
+                if (keyMeshes['Escape']) recolorSingleKeycap(keyMeshes['Escape'], '#b85c38', '#ffffff');
+                if (keyMeshes['Enter']) recolorSingleKeycap(keyMeshes['Enter'], '#b85c38', '#ffffff');
+                if (keyMeshes['Space']) recolorSingleKeycap(keyMeshes['Space'], '#9a8174', '#ffffff');
+                if (keyMeshes['Backspace']) recolorSingleKeycap(keyMeshes['Backspace'], '#9a8174', '#ffffff');
+
+            } else if (themeName === 'cyber') {
+                selectedKeycapColor = '#111827';
+                selectedTextColor = '#00f0ff';
+                selectedCaseColor = '#0b0f19';
+
+                syncPickerInputs(selectedKeycapColor, selectedTextColor, selectedCaseColor);
+                createKeyboard3D();
+
+                const neonPinkKeys = ['Escape', 'Enter', 'Space'];
+                neonPinkKeys.forEach(code => {
+                    if (keyMeshes[code]) recolorSingleKeycap(keyMeshes[code], '#ff007f', '#ffffff');
+                });
+
+            } else if (themeName === 'white') {
+                selectedKeycapColor = '#f8fafc';
+                selectedTextColor = '#64748b';
+                selectedCaseColor = '#cbd5e1';
+
+                syncPickerInputs(selectedKeycapColor, selectedTextColor, selectedCaseColor);
+                createKeyboard3D();
+
+                if (keyMeshes['Escape']) recolorSingleKeycap(keyMeshes['Escape'], '#ef4444', '#ffffff');
+
+            } else if (themeName === 'peach') {
+                selectedKeycapColor = '#ffe5ec';
+                selectedTextColor = '#fb6f92';
+                selectedCaseColor = '#ffb3c6';
+
+                syncPickerInputs(selectedKeycapColor, selectedTextColor, selectedCaseColor);
+                createKeyboard3D();
+
+                const peachKeys = ['Escape', 'Enter', 'Space'];
+                peachKeys.forEach(code => {
+                    if (keyMeshes[code]) recolorSingleKeycap(keyMeshes[code], '#ff8fab', '#ffffff');
+                });
+
+            } else if (themeName === 'carbon') {
+                selectedKeycapColor = '#374151';
+                selectedTextColor = '#f3f4f6';
+                selectedCaseColor = '#111827';
+
+                syncPickerInputs(selectedKeycapColor, selectedTextColor, selectedCaseColor);
+                createKeyboard3D();
+
+                const carbonKeys = ['Escape', 'Enter', 'Space'];
+                carbonKeys.forEach(code => {
+                    if (keyMeshes[code]) recolorSingleKeycap(keyMeshes[code], '#ff7f3e', '#ffffff');
+                });
+            }
+        }
+
+        function syncPickerInputs(keyHex, textHex, caseHex) {
+            document.getElementById('keyColorPicker').value = keyHex;
+            document.getElementById('textColorPicker').value = textHex;
+            document.getElementById('caseColorPicker').value = caseHex;
+
+            document.getElementById('hex-keyColor').innerText = keyHex;
+            document.getElementById('hex-textColor').innerText = textHex;
+            document.getElementById('hex-caseColor').innerText = caseHex;
+        }
+
+        function resetKeycaps() {
+            selectedKeycapColor = '#f3f4f6';
+            selectedTextColor = '#1f2937';
+            selectedCaseColor = '#111827';
+
+            syncPickerInputs(selectedKeycapColor, selectedTextColor, selectedCaseColor);
+            createKeyboard3D();
+        }
+    </script>
 </body>
 </html>
